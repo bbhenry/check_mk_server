@@ -1,0 +1,4 @@
+#
+# Daily On-call Rotation and Reminder
+#
+0 17 * * * $OMD_ROOT/local/share/check_mk/notifications/cron >/dev/null 2>&1
