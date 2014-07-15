@@ -1,0 +1,58 @@
+#!/bin/bash
+
+SCRIPT_PATH="$HOME/local/share/check_mk/notifications/oncall"
+EMAIL="$HOME/bin/mail"
+ONCALL_LIST=('"1111111111@tmomail.net"' '"2222222222@tmomail.net"' '"3333333333@tmomail.net"' '"4444444444@tmomail.net"' '"55555555555@tmomail.net"');
+INTERVAL=1
+
+# Update the OMD notification script with the new on-call contacts
+oncall_rotate() {
+	LENGTH=${#ONCALL_LIST[@]}
+	echo "length $LENGTH"
+
+	OLD_FLAG=`grep FLAG ${SCRIPT_PATH} | awk '{print $1}'`
+	echo "OLD flag $OLD_FLAG"
+
+	if [[ $OLD_FLAG -eq $(($LENGTH-1)) ]]; then
+		PRIMARY=0
+		SECONDARY=1
+		NEW_PRIMARY=$SECONDARY
+		NEW_SECONDARY=$((SECONDARY+1))
+		FLAG=0
+	elif [[ $OLD_FLAG -eq $(($LENGTH-2)) ]]; then
+		PRIMARY=$(($LENGTH-1))
+		SECONDARY=0
+		NEW_PRIMARY=$SECONDARY
+                NEW_SECONDARY=$((SECONDARY+1))
+        elif [[ $OLD_FLAG -eq $(($LENGTH-3)) ]]; then
+                PRIMARY=$(($LENGTH-2))
+                SECONDARY=$(($LENGTH-1))
+                NEW_PRIMARY=$SECONDARY
+                NEW_SECONDARY=0
+	else
+		PRIMARY=$(($OLD_FLAG+1))
+		SECONDARY=$(($OLD_FLAG+2))
+		NEW_PRIMARY=$SECONDARY
+		NEW_SECONDARY=$(($SECONDARY+1))
+	fi
+
+	echo "$PRIMARY      $SECONDARY   $NEW_PRIMARY    $NEW_SECONDARY"
+	echo "Primary ${ONCALL_LIST[${PRIMARY}]} Secondary ${ONCALL_LIST[${SECONDARY}]}"
+	sed -i -e "s/FLAG=.*/FLAG=${PRIMARY}/" \
+	    -e "s/PRIMARY=.*/PRIMARY=${ONCALL_LIST[${PRIMARY}]}/" \
+	    -e "s/SECONDARY=.*/SECONDARY=${ONCALL_LIST[${SECONDARY}]}/" ${SCRIPT_PATH}
+}
+
+# Send reminder to people who will be on-call in advance
+remind_oncall() {
+	NEXT_ONCALL_DATE=`date -d 'now +${INTERVAL} day'`
+	# To Primary
+	echo "You are now the primary on-call person" | $EMAIL -s "You are Primary On-call" ${ONCALL_LIST[${PRIMARY}]}
+	echo "You will be the Primary on-call person starting ${NEXT_ONCALL_DATE}" | $EMAIL -s "Primary On-call Reminder" ${ONCALL_LIST[${NEW_PRIMARY}]}
+	# To Secondary
+	echo "You are now the secondary on-call person" | $EMAIL -s "You are Secondary On-call" ${ONCALL_LIST[${SECONDARY}]}
+	echo "You will be the Secondary on-call person starting ${NEXT_ONCALL_DATE}" | $EMAIL -s "Secondary On-call Reminder" ${ONCALL_LIST[$NEW_SECONDARY]}
+}
+
+oncall_rotate
+remind_oncall
