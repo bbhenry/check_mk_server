@@ -45,7 +45,7 @@ oncall_rotate() {
 
 # Send reminder to people who will be on-call in advance
 remind_oncall() {
-	NEXT_ONCALL_DATE=`date -d 'now +${INTERVAL} day'`
+	NEXT_ONCALL_DATE=`date -d "now +${INTERVAL} day"`
 	# To Primary
 	echo "You are now the primary on-call person" | $EMAIL -s "You are Primary On-call" ${ONCALL_LIST[${PRIMARY}]}
 	echo "You will be the Primary on-call person starting ${NEXT_ONCALL_DATE}" | $EMAIL -s "Primary On-call Reminder" ${ONCALL_LIST[${NEW_PRIMARY}]}
