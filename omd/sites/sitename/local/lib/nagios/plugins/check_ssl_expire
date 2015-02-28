@@ -64,7 +64,7 @@ EPOCH_NOW=$(date +%s)
 
 # Check if the certificate has been valid yet
 if [ "$START_EPOCH" -gt "$EPOCH_NOW" ]; then
-  echo "WARN - SSL Certificate for ${HOST} will be valid on ${START_DATE}"
+  echo "WARN - SSL Certificate for <b>${HOST}</b> will be valid on ${START_DATE}"
   exit 1
 fi
 
@@ -74,13 +74,13 @@ EXPIRE_DAYS=$(($EXPIRE_SECONDS / 86400))
 
 # Compare expected expire days to critial and warning days
 if [[ $EXPIRE_DAYS -lt $CRIT ]]; then
-  echo "CRIT - SSL Certificate for ${HOST} is expiring on ${END_DATE}"
+  echo "CRIT - SSL Certificate for <b>${HOST}</b> is expiring on <span style="color:red">${END_DATE}</span>"
   exit 2
 elif [[ $EXPIRE_DAYS -lt $WARN ]]; then
-  echo "WARN - SSL Certificate for ${HOST} is expiring on ${END_DATE}"
+  echo "WARN - SSL Certificate for <b>${HOST}</b> is expiring on <span style="color:red">${END_DATE}</span>"
   exit 1
 else
-  echo "OK - SSL Certificate for ${HOST} is expiring on ${END_DATE}"
+  echo "OK - SSL Certificate for <b>${HOST}</b> is expiring on <span style="color:green">${END_DATE}</span>"
   exit 0
 fi
 
