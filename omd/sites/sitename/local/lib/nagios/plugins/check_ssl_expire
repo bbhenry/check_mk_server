@@ -1,0 +1,87 @@
+#!/bin/bash
+
+PROGNAME=`basename $0`
+CRIT=15
+WARN=30
+
+usage() {
+  echo "This plugin check if the given website's SSL certificate for expiration date"
+  echo
+  echo "Usage: $PROGNAME -h <FQDN> [-c <15>] [-w <30>]"
+  echo
+  echo "Options:"
+  echo " -H Mandatory, please put the fully qualified domain name for the SSL Certificate you want to monitor"
+  echo " -c Default 15, the number of days left before it alerts for Critical state"
+  echo " -w Default 30, the number of days left before it alerts for Warning state"
+  exit
+}
+
+while getopts :h:c:w: OPTION
+do
+  case $OPTION in
+    h)
+      HOST=${OPTARG}
+      ;;
+    c)
+      CRIT=${OPTARG}
+      ;;
+    w)
+      WARN=${OPTARG}
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+# Make sure HOST argument is provided
+if [[ -z ${HOST} ]]; then
+  usage
+fi
+
+# Get SSL certificate information with curl command
+OUTPUT=$(timeout 2s /usr/bin/curl -vsI https://${HOST} 2>&1)
+
+# If the command times out, there is something wrong with the FQDN
+RET=$?
+if [[ $RET -eq 124 || $RET -eq 137 ]]; then
+  echo "UNKNOWN - the checked timed out, please make sure you are using a valid FQDN"
+  exit 3
+elif [[ $RET -ne 0 ]]; then
+  echo "UNKNOWN - unable to retrieve the certification information, please check the FQDN"
+  exit 3
+fi
+
+# Parse the start and end date of the certificate
+START_DATE=$(echo "$OUTPUT" | sed -n 's/.*start date: \(.*GMT\)/\1/p')
+END_DATE=$(echo "$OUTPUT" | sed -n 's/.*expire date: \(.*GMT\)/\1/p')
+
+# Convert the date to unix time
+START_EPOCH=$(date +%s -d "$START_DATE")
+END_EPOCH=$(date +%s -d "$END_DATE")
+
+EPOCH_NOW=$(date +%s)
+
+# Check if the certificate has been valid yet
+if [ "$START_EPOCH" -gt "$EPOCH_NOW" ]; then
+  echo "WARN - SSL Certificate for ${HOST} will be valid on ${START_DATE}"
+  exit 1
+fi
+
+# Calculate number of days before the certificate expires
+EXPIRE_SECONDS=$(($END_EPOCH - $EPOCH_NOW))
+EXPIRE_DAYS=$(($EXPIRE_SECONDS / 86400))
+
+# Compare expected expire days to critial and warning days
+if [[ $EXPIRE_DAYS -lt $CRIT ]]; then
+  echo "CRIT - SSL Certificate for ${HOST} is expiring on ${END_DATE}"
+  exit 2
+elif [[ $EXPIRE_DAYS -lt $WARN ]]; then
+  echo "WARN - SSL Certificate for ${HOST} is expiring on ${END_DATE}"
+  exit 1
+else
+  echo "OK - SSL Certificate for ${HOST} is expiring on ${END_DATE}"
+  exit 0
+fi
+
+exit
