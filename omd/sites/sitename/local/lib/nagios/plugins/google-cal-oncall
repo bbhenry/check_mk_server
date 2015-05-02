@@ -1,0 +1,46 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# For accessing Google API
+import httplib2
+from oauth2client.client import SignedJwtAssertionCredentials
+from apiclient.discovery import build
+
+# Get Time and Date
+from datetime import datetime, timedelta
+
+# Call System Command
+from subprocess import call
+
+# Pretty Formatting
+import pprint
+
+
+now = datetime.now()
+today = now.strftime('%Y-%m-%dT%H:%M:%S-08:00')
+tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S-08:00')
+print today
+print tomorrow
+
+client_email = '5555555555555555555-somekey-5555555555555555@developer.gserviceaccount.com'
+with open("oncall_calendar.pem") as f:
+  private_key = f.read()
+
+credentials = SignedJwtAssertionCredentials(client_email, private_key, 'https://www.googleapis.com/auth/calendar',sub='someone@gmail.com')
+
+http = httplib2.Http()
+http = credentials.authorize(http)
+
+service = build('calendar', 'v3', http=http)
+
+calendar = service.calendars().get(calendarId='some-calendar-id@group.calendar.google.com').execute()
+
+events = service.events().list(calendarId='some-calendar-id@group.calendar.google.com',
+			      timeMin = today,
+                              timeMax = tomorrow, singleEvents='False').execute()
+#print calendar
+pprint.pprint(events)
+print events['items'][0]['summary']
+print events['items'][1]['creator']['email']
+
+call(["echo", '林老師'])
