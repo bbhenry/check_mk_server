@@ -2,7 +2,8 @@
 
 SCRIPT_PATH="$HOME/local/share/check_mk/notifications/oncall"
 EMAIL="$HOME/bin/mail"
-ONCALL_LIST=('"1111111111@tmomail.net"' '"2222222222@tmomail.net"' '"3333333333@tmomail.net"' '"4444444444@tmomail.net"' '"55555555555@tmomail.net"');
+NAME=('name1' 'name2' 'name3' 'name4')
+ONCALL_LIST=('1111111111@vtext.com' '2222222222@tmomail.net' '3333333333@tmomail.net' '4444444444@tmomail.net')
 INTERVAL=1
 
 # Update the OMD notification script with the new on-call contacts
@@ -10,7 +11,7 @@ oncall_rotate() {
 	LENGTH=${#ONCALL_LIST[@]}
 	echo "length $LENGTH"
 
-	OLD_FLAG=`grep FLAG ${SCRIPT_PATH} | awk '{print $1}'`
+	OLD_FLAG=`grep FLAG ${SCRIPT_PATH} | awk -F = '{print $2}'`
 	echo "OLD flag $OLD_FLAG"
 
 	if [[ $OLD_FLAG -eq $(($LENGTH-1)) ]]; then
@@ -36,23 +37,36 @@ oncall_rotate() {
 		NEW_SECONDARY=$(($SECONDARY+1))
 	fi
 
-	echo "$PRIMARY      $SECONDARY   $NEW_PRIMARY    $NEW_SECONDARY"
-	echo "Primary ${ONCALL_LIST[${PRIMARY}]} Secondary ${ONCALL_LIST[${SECONDARY}]}"
 	sed -i -e "s/FLAG=.*/FLAG=${PRIMARY}/" \
-	    -e "s/PRIMARY=.*/PRIMARY=${ONCALL_LIST[${PRIMARY}]}/" \
-	    -e "s/SECONDARY=.*/SECONDARY=${ONCALL_LIST[${SECONDARY}]}/" ${SCRIPT_PATH}
+	    -e "s/PRIMARY=.*/PRIMARY=\"${ONCALL_LIST[${PRIMARY}]}\"/" \
+	    -e "s/SECONDARY=.*/SECONDARY=\"${ONCALL_LIST[${SECONDARY}]}\"/" ${SCRIPT_PATH}
 }
 
 # Send reminder to people who will be on-call in advance
 remind_oncall() {
 	NEXT_ONCALL_DATE=`date -d "now +${INTERVAL} day"`
 	# To Primary
-	echo "You are now the primary on-call person" | $EMAIL -s "You are Primary On-call" ${ONCALL_LIST[${PRIMARY}]}
+	echo "You are NOW DISMISSED from on-call duty" | $EMAIL -s "Your on-call duty ends now" ${ONCALL_LIST[${OLD_FLAG}]}
+	echo "You are NOW the On-call Hero and your sidekick is ${NAME[${SECONDARY}]} ${ONCALL_LIST[${SECONDARY}]}" | $EMAIL -s "You are the On-call Hero" ${ONCALL_LIST[${PRIMARY}]}
 	echo "You will be the Primary on-call person starting ${NEXT_ONCALL_DATE}" | $EMAIL -s "Primary On-call Reminder" ${ONCALL_LIST[${NEW_PRIMARY}]}
 	# To Secondary
-	echo "You are now the secondary on-call person" | $EMAIL -s "You are Secondary On-call" ${ONCALL_LIST[${SECONDARY}]}
+	echo "You are NOW the Sidekick of ${NAME[${PRIMARY}]} ${ONCALL_LIST[${PRIMARY}]}" | $EMAIL -s "You are Secondary On-call" ${ONCALL_LIST[${SECONDARY}]}
 	echo "You will be the Secondary on-call person starting ${NEXT_ONCALL_DATE}" | $EMAIL -s "Secondary On-call Reminder" ${ONCALL_LIST[$NEW_SECONDARY]}
+
+	# To Everyone
+	PRIMARY_PHONE=`echo ${PRIMARY} | awk -F @ '{print $1}'`
+	SECONDARY_PHONE=`echo ${SECONDARY} | awk -F @ '{print $1}'`
+#	echo "Primary Number: ${PRIMARY_PHONE}   Secondary Number: ${SECONDARY_PHONE}" | $EMAIL -s "On-call Contact Numbers for the next ${INTERVAL} day"
+}
+
+# Debug Output
+debug_output() {
+	echo "Old primary is ${NAME[${PRIMARY}]} ${ONCALL_LIST[${PRIMARY}]}"
+	echo "Old secondary is ${NAME[${SECONDARY}]} ${ONCALL_LIST[${SECONDARY}]}"
+	echo "NEW primary is ${NAME[${NEW_PRIMARY}]} ${ONCALL_LIST[${NEW_PRIMARY}]}"
+	echo "NEW secondary is ${NAME[${NEW_SECONDARY}]} ${ONCALL_LIST[${NEW_SECONDARY}]}"
 }
 
 oncall_rotate
 remind_oncall
+#debug_output
